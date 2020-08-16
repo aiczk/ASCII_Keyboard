@@ -1,14 +1,13 @@
-#include "Keyboard.h"
-
 //2*4 = 8bit
 //最上位bitを1つ除いた残りの7bitを使う
 const int rowNum = 2;
 const int colNum = 4;
-const int rowPin[row] = { 3, 4 };
-const int colPin[colPin] = { 5, 6, 7, 8 };
+const int rowPin[rowNum] = { 3, 4 };
+const int colPin[colNum] = { 5, 6, 7, 8 };
 
 byte chord, cache;
 bool isPress;
+int index;
 
 void setup()
 {
@@ -21,8 +20,9 @@ void setup()
   for(int i = 0; i < colNum; i++)
     pinMode(colPin[i], INPUT_PULLUP);
 
+  index = -1;
+
   Serial.begin(9600);
-  Keyboard.begin();
 }
 
 void loop() 
@@ -34,26 +34,32 @@ void loop()
 
     for(int j = colNum; j < 0; j--)
     {
-      //キーが押されていないなら1bit右シフトしてcontinue
-      //何らかのキーが押されていたらcacheのみ右シフトしてcontinue
+      ++index;
       if(digitalRead(colPin[j]) != LOW)
-      {
-        cache = cache >> 1;
-        
-        if(isPress)
+      { 
+        //キーの状態が以前と異なっていたら対象bitを0にする
+        if(((chord >> index) & 1) != 1)
           continue;
+
+        //何らかのキーが押されているので1bit右シフト
+        if(isPress)
+          cache = cache << 1;
         
-        chord = chord >> 1;
+        chord &= ~(1 << index);
         continue;
       }
 
-      //最上位bitを1にして1bit右シフトする
-      chord = cache = B10000000 | chord >> 1;
+      //対象bitを1にする
+      chord = cache |= (1 << index);
       isPress = true;
     }
 
     digitalWrite(rowPin[i], HIGH);
   }
+
+  Serial.print("CURRENT: ")
+  Serial.print(chord);
+  index = -1;
 
   //フラグが立っており、NULL(全てのbitが0である)なら処理継続
   //NULLでない(全てのbitが0でない)ならreturn
